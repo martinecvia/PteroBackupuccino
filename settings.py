@@ -28,6 +28,7 @@ class Settings:
     USE_LOCKED_BACKUPS  = False # If this is true
                                 # locked backups will be included into backup list
                                 # thus used towards backup limit
+    DELETE_LOCKED       = False # Only usable if {{USE_LOCKED_BACKUPS}} is True
 
     HTTP_TIMEOUT        = 10
     HTTP_RETRY_COUNT    = 3
