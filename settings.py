@@ -1,8 +1,11 @@
 import logging
 import sys
 
+import argparse
+
 class Settings:
     def __init__(self):
+        arguments = self._arguments()
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s [%(levelname)s] %(message)s",
@@ -11,31 +14,30 @@ class Settings:
                 logging.StreamHandler(sys.stdout)
             ]
         )
+        self.PTERODACTYL_API_URL: str = arguments.PTERODACTYL_API_URL; self.PTERODACTYL_API_KEY = arguments.PTERODACTYL_API_KEY
+        self.DISCORD_WEBHOOK_URL: str = arguments.DISCORD_WEBHOOK_URL
 
-    def _is_init(self) -> bool:
-        return all([
-                self.PTERODACTYL_API_URL != "https://pterodactyl.file.properties/api/client", 
-                self.PTERODACTYL_API_KEY != "your_api_key_here"
-            ])
+        self.HTTP_HEADER: str         = {
+            "Authorization": f"Bearer {self.PTERODACTYL_API_KEY}",
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
 
-    PTERODACTYL_API_URL = "https://pterodactyl.file.properties/api/client"
-    PTERODACTYL_API_KEY = "your_api_key_here" # Client API_KEY
-    DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/..."
+        self.MAX_BACKUP_LIMIT: int    = arguments.MAX_BACKUP_LIMIT
+        self.USE_LOCKED_BACKUPS: bool = arguments.USE_LOCKED_BACKUPS # If this is true
+                                                                     # locked backups will be included into backup list
+                                                                     # thus used towards backup limit
+        self.DELETE_LOCKED: bool = arguments.DELETE_LOCKED           # Only usable if {{USE_LOCKED_BACKUPS}} is True
+        self.APP_CHECK_INTERVAL: int = arguments.APP_CHECK_INTERVAL
+        self.HTTP_TIMEOUT: int = arguments.HTTP_TIMEOUT; self.HTTP_RETRY_COUNT: int = arguments.HTTP_RETRY_COUNT; self.HTTP_RETRY_DELAY: int = arguments.HTTP_RETRY_DELAY
 
-    MAX_BACKUP_LIMIT    = 3
-    USE_LOCKED_BACKUPS  = False # If this is true
-                                # locked backups will be included into backup list
-                                # thus used towards backup limit
-    DELETE_LOCKED       = False # Only usable if {{USE_LOCKED_BACKUPS}} is True
+    def _arguments(self) -> argparse.Namespace:
+        parser = argparse.ArgumentParser(description="Basic arguments parser for Backupuccino")
+        parser.add_argument("--PTERODACTYL_API_URL", required=True, help="Pterodactyl Client API URL")
+        parser.add_argument("--PTERODACTYL_API_KEY", required=True, help="Pterodactyl Client API KEY")
 
-    HTTP_TIMEOUT        = 10
-    HTTP_RETRY_COUNT    = 3
-    HTTP_RETRY_DELAY    = 3
-    HTTP_HEADER         = {
-        "Authorization": f"Bearer {PTERODACTYL_API_KEY}",
-        "Accept": "application/json",
-        "Content-Type": "application/json"
-    }
-
-    APP_CHECK_INTERVAL  = 60 * 60 * 1 # Every hour application should start and check
-
+        parser.add_argument("--DISCORD_WEBHOOK_URL", default="https://discord.com/api/webhooks/...", help="Discord webhook URL for notifications")
+        parser.add_argument("--MAX_BACKUP_LIMIT", default=3, type=int); parser.add_argument("--USE_LOCKED_BACKUPS", default=False, action="store_true");  parser.add_argument("--DELETE_LOCKED", default=False, action="store_true")
+        parser.add_argument("--APP_CHECK_INTERVAL", default=60*60*1, type=int)
+        parser.add_argument("--HTTP_TIMEOUT", default=10, type=int); parser.add_argument("--HTTP_RETRY_COUNT", default=3, type=int); parser.add_argument("--HTTP_RETRY_DELAY", default=3, type=int)
+        return parser.parse_args()
