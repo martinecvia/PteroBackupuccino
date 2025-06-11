@@ -13,8 +13,8 @@ class Settings:
         )
 
     def _is_init(self) -> bool:
-        return self.PTERODACTYL_API_URL == "https://panel.example.com" \
-            or self.PTERODACTYL_API_KEY == "your_api_key_here" 
+        return self.PTERODACTYL_API_URL != "https://panel.example.com" \
+            or self.PTERODACTYL_API_KEY != "your_api_key_here" 
 
     PTERODACTYL_API_URL = "https://panel.example.com"
     PTERODACTYL_API_KEY = "your_api_key_here"
