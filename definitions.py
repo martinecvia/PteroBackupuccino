@@ -1,4 +1,8 @@
-from dataclasses import dataclass, field
+import logging
+from typing import Literal
+import aiohttp
+
+from dataclasses import dataclass
 from datetime import datetime
 
 @dataclass
@@ -20,15 +24,30 @@ class Server:
             created_at (datetime): When the backup was created.
             completed_at (datetime | None): When the backup completed, or None if still in progress.
         """
+
         uuid: str
         name: str
-        bytes: int
-        created_at: datetime
-        completed_at: datetime | None
+        size: int
 
-        def is_locked(self) -> bool:
-            return False
-        
+        created_at: datetime
+
+        is_successful: bool
+        is_locked: bool
+
+        logger = logging.getLogger(__name__)
+
+        async def delete(self, session: aiohttp.ClientSession):
+            from app import Bootstrap
+            bootstrap: Bootstrap = getattr(session, 'bootstrap', None)
+            if not bootstrap:
+                raise RuntimeError("Bootstrap is not attached to session !")
+            url = f"/servers/{self.uuid}/backups/{self.uuid}"
+            manifest, last_result_info = await bootstrap.request_with_retries(session, "DELETE", url)
+            if last_result_info == 204:
+                return True, last_result_info
+            self.logger.warning(url, manifest)
+            return False, last_result_info
+
     identifier: str | None
     uuid: str
     name: str
@@ -40,5 +59,37 @@ class Server:
     is_installing: bool
     """Whether the server is in the installation phase."""
 
-    backups: list[Backup] = field(default_factory=list)
-    """List of backups associated with the server."""
+    node: Literal["wings0", "wings1", "wings2"]
+
+    logger = logging.getLogger(__name__)
+
+    @property
+    def is_active(self) -> bool:
+        return not self.is_suspended and not self.is_installing
+
+    async def get_backups(self, session: aiohttp.ClientSession):
+        if self.is_suspended or self.is_installing:
+            return [], 204
+        from app import Bootstrap
+        bootstrap: Bootstrap = getattr(session, 'bootstrap', None)
+        if not bootstrap:
+            raise RuntimeError("Bootstrap is not attached to session !")
+        url = f"/servers/{self.uuid}/backups"
+        try:
+            manifest, last_result_info = await bootstrap.request_with_retries(session, "GET", url)
+            if manifest is None:
+                return [], last_result_info
+            backups = []
+            for backup in manifest.get("data", []):
+                attributes = backup.get("attributes", {})
+                backups.append(self.Backup(
+                    uuid=attributes["uuid"],
+                    name=attributes["name"]  or attributes["uuid"],
+                    size=attributes["bytes"] or 0,
+                    created_at=datetime.fromisoformat(attributes["created_at"]),
+                    is_successful=bool(attributes["is_successful"]),
+                    is_locked=bool(attributes["is_locked"]),
+                ))
+            return backups, last_result_info
+        except Exception as exception:
+            return [], exception
