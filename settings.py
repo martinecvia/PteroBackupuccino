@@ -13,11 +13,15 @@ class Settings:
         )
 
     def _is_init(self) -> bool:
-        return self.PTERODACTYL_API_URL != "https://panel.example.com" \
-            or self.PTERODACTYL_API_KEY != "your_api_key_here" 
+        return all([
+                self.PTERODACTYL_API_URL != "https://panel.example.com", 
+                self.PTERODACTYL_API_KEY != "your_api_key_here", 
+                self.PTERODACTYL_CLIENT_KEY != "your_api_key_here"
+            ])
 
     PTERODACTYL_API_URL = "https://panel.example.com"
     PTERODACTYL_API_KEY = "your_api_key_here"
+    PTERODACTYL_CLIENT_KEY = "your_api_key_here"
     DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/..."
 
     MAX_BACKUP_LIMIT    = 3
