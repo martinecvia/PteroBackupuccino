@@ -18,13 +18,14 @@ class Server:
         Represents a backup of the server.
 
         Attributes:
+            server_identifier: (str): Unique identifier of the server.
             uuid (str): Unique identifier of the backup.
             name (str): Human-readable name of the backup.
             bytes (int): Size of the backup in bytes.
             created_at (datetime): When the backup was created.
             completed_at (datetime | None): When the backup completed, or None if still in progress.
         """
-
+        server_identifier: str
         uuid: str
         name: str
         size: int
@@ -41,11 +42,11 @@ class Server:
             bootstrap: Bootstrap = getattr(session, 'bootstrap', None)
             if not bootstrap:
                 raise RuntimeError("Bootstrap is not attached to session !")
-            url = f"/servers/{self.uuid}/backups/{self.uuid}"
+            url = f"/servers/{self.server_identifier}/backups/{self.uuid}"
             manifest, last_result_info = await bootstrap.request_with_retries(session, "DELETE", url)
             if last_result_info == 204:
                 return True, last_result_info
-            self.logger.warning(url, manifest)
+            self.logger.warning(f"Failed to delete: {self.uuid}.zip, manifest: {manifest}")
             return False, last_result_info
 
     identifier: str | None
@@ -74,7 +75,7 @@ class Server:
         bootstrap: Bootstrap = getattr(session, 'bootstrap', None)
         if not bootstrap:
             raise RuntimeError("Bootstrap is not attached to session !")
-        url = f"/servers/{self.uuid}/backups"
+        url = f"/servers/{self.identifier}/backups"
         try:
             manifest, last_result_info = await bootstrap.request_with_retries(session, "GET", url)
             if manifest is None:
@@ -83,6 +84,7 @@ class Server:
             for backup in manifest.get("data", []):
                 attributes = backup.get("attributes", {})
                 backups.append(self.Backup(
+                    server_identifier=self.identifier,
                     uuid=attributes["uuid"],
                     name=attributes["name"]  or attributes["uuid"],
                     size=attributes["bytes"] or 0,

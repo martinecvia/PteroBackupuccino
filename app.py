@@ -55,11 +55,31 @@ async def try_authenticate(session: aiohttp.ClientSession) -> tuple[list[Server]
         return [], exception
 
 async def prune_backups_for_server(session: aiohttp.ClientSession, server: Server):
-    backups, last_result_info = await server.get_backups(session)
-    if not backups:
-        return None, last_result_info
+    backups, _ = await server.get_backups(session)
+    if not backups or not server.is_active:
+        return
     backups: list[Server.Backup] = backups
-    print(server.name, len(backups), sum([backup.size for backup in backups]) / (1024 ** 3))
+    backups.sort(key=lambda backup: backup.created_at, reverse=True)
+    for backup in backups:
+        if backup.is_successful == False:
+            result, _ = await backup.delete(session)
+            if result:
+                logger.warning(f"Deleting: {backup.uuid}.zip with total size {backup.size / (1024 ** 3)} from: {backup.created_at}")
+                backups.remove(backup)
+    # MAX_BACKUP_LIMIT
+    # USE_LOCKED_BACKUPS
+    # DELETE_LOCKED
+    backups_for_deletion = (backups if session.bootstrap.settings.DELETE_LOCKED 
+                            else [backup for backup in backups 
+                                  if not backup.is_locked]) \
+    [session.bootstrap.settings.MAX_BACKUP_LIMIT:]
+    if not backups_for_deletion:
+        return # No viable backups are ready for deletion
+    for backup in backups_for_deletion:
+        result, _ = await backup.delete(session)
+        if result:
+            logger.warning(f"Deleting: {backup.uuid}.zip with total size {backup.size / (1024 ** 3)} from: {backup.created_at}")
+            # No need to remove backup from backups list, EOL
 
 async def serve_forever(bootstrap: Bootstrap):
     async with aiohttp.ClientSession() as session:
