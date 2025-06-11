@@ -66,9 +66,6 @@ async def prune_backups_for_server(session: aiohttp.ClientSession, server: Serve
             if result:
                 logger.warning(f"Deleting: {backup.uuid}.zip with total size {backup.size / (1024 ** 3)} from: {backup.created_at}")
                 backups.remove(backup)
-    # MAX_BACKUP_LIMIT
-    # USE_LOCKED_BACKUPS
-    # DELETE_LOCKED
     backups_for_deletion = (backups if session.bootstrap.settings.DELETE_LOCKED 
                             else [backup for backup in backups 
                                   if not backup.is_locked]) \
