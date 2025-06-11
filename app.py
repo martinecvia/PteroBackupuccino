@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import math
 
 import aiohttp
 
@@ -58,13 +59,15 @@ async def prune_backups_for_server(session: aiohttp.ClientSession, server: Serve
     backups, _ = await server.get_backups(session)
     if not backups or not server.is_active:
         return
+    locked_backups = [backup for backup in backups if backup.is_locked]
+    logger.info(f"Found: '{server.name}'->{len(backups)-len(locked_backups)}{f'({len(locked_backups)}🔐)' if locked_backups else ''} backups with total size {math.ceil(sum([backup.size for backup in backups]) / (1024 ** 3) * 100) / 100}GB")
     backups: list[Server.Backup] = backups
     backups.sort(key=lambda backup: backup.created_at, reverse=True)
     for backup in backups:
         if backup.is_successful == False:
             result, _ = await backup.delete(session)
             if result:
-                logger.warning(f"Deleting: {backup.uuid}.zip with total size {backup.size / (1024 ** 3)} from: {backup.created_at}")
+                logger.warning(f"Deleting: {backup.uuid}.zip with total size {math.ceil(backup.size / (1024 ** 3) * 100) / 100}GB from: {backup.created_at}")
                 backups.remove(backup)
     backups_for_deletion = (backups if session.bootstrap.settings.DELETE_LOCKED 
                             else [backup for backup in backups 
@@ -75,7 +78,7 @@ async def prune_backups_for_server(session: aiohttp.ClientSession, server: Serve
     for backup in backups_for_deletion:
         result, _ = await backup.delete(session)
         if result:
-            logger.warning(f"Deleting: {backup.uuid}.zip with total size {backup.size / (1024 ** 3)} from: {backup.created_at}")
+            logger.warning(f"Deleting: {backup.uuid}.zip with total size {math.ceil(backup.size / (1024 ** 3) * 100) / 100}GB from: {backup.created_at}")
             # No need to remove backup from backups list, EOL
 
 async def serve_forever(bootstrap: Bootstrap):
