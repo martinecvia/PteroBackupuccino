@@ -39,9 +39,7 @@ python app.py \
 
   - Filters backups based on the locked status and your settings:
   
-    - If `USE_LOCKED_BACKUPS` is false, locked backups are excluded from deletion.
-    
-    - If `USE_LOCKED_BACKUPS` is true but `DELETE_LOCKED` is false, locked backups are kept.
+    - If `DELETE_LOCKED` is false, locked backups are excluded from deletion.
 
   - Keeps the newest `MAX_BACKUP_LIMIT` backups
 
