@@ -14,14 +14,12 @@ class Settings:
 
     def _is_init(self) -> bool:
         return all([
-                self.PTERODACTYL_API_URL != "https://panel.example.com", 
-                self.PTERODACTYL_APPLICATION_KEY != "your_api_key_here", 
-                self.PTERODACTYL_CLIENT_KEY != "your_api_key_here"
+                self.PTERODACTYL_API_URL != "https://pterodactyl.file.properties/api/client", 
+                self.PTERODACTYL_API_KEY != "your_api_key_here"
             ])
 
-    PTERODACTYL_API_URL = "https://panel.example.com"
-    PTERODACTYL_APPLICATION_KEY = "your_api_key_here"
-    PTERODACTYL_CLIENT_KEY = "your_api_key_here"
+    PTERODACTYL_API_URL = "https://pterodactyl.file.properties/api/client"
+    PTERODACTYL_API_KEY = "your_api_key_here" # Client API_KEY
     DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/..."
 
     MAX_BACKUP_LIMIT    = 3
@@ -34,8 +32,8 @@ class Settings:
     HTTP_RETRY_COUNT    = 3
     HTTP_RETRY_DELAY    = 3
     HTTP_HEADER         = {
-        "Authorization": "Bearer %Key",
-        "Accept": "Application/vnd.pterodactyl.v1+json",
+        "Authorization": f"Bearer {PTERODACTYL_API_KEY}",
+        "Accept": "application/json",
         "Content-Type": "application/json"
     }
 
