@@ -1,5 +1,5 @@
 import logging
-from typing import Literal
+from typing import Literal, Optional
 import aiohttp
 
 from dataclasses import dataclass
@@ -31,6 +31,7 @@ class Server:
         size: int
 
         created_at: datetime
+        completed_at: Optional[datetime]
 
         is_successful: bool
         is_locked: bool
@@ -81,7 +82,7 @@ class Server:
             if manifest is None:
                 return [], last_result_info
             backups = []
-            for backup in manifest.get("data", []):
+            for i, backup in enumerate(manifest.get("data", [])):
                 attributes = backup.get("attributes", {})
                 backups.append(self.Backup(
                     server_identifier=self.identifier,
@@ -89,6 +90,7 @@ class Server:
                     name=attributes["name"]  or attributes["uuid"],
                     size=attributes["bytes"] or 0,
                     created_at=datetime.fromisoformat(attributes["created_at"]),
+                    completed_at=datetime.fromisoformat(attributes["completed_at"]),
                     is_successful=bool(attributes["is_successful"]),
                     is_locked=bool(attributes["is_locked"]),
                 ))

@@ -56,19 +56,20 @@ async def try_authenticate(session: aiohttp.ClientSession) -> tuple[list[Server]
         return [], exception
 
 async def prune_backups_for_server(session: aiohttp.ClientSession, server: Server):
-    backups, _ = await server.get_backups(session)
-    if not backups or not server.is_active:
+    tmp_backups, _ = await server.get_backups(session)
+    if not tmp_backups or not server.is_active:
         return
-    locked_backups = [backup for backup in backups if backup.is_locked]
-    logger.info(f"Found: '{server.name}'->{len(backups)-len(locked_backups)}{f'({len(locked_backups)}🔐)' if locked_backups else ''} backups with total size {math.ceil(sum([backup.size for backup in backups]) / (1024 ** 3) * 100) / 100}GB")
-    backups: list[Server.Backup] = backups
+    locked_backups = [backup for backup in tmp_backups if backup.is_locked]
+    logger.info(f"Found: '{server.name}'->{len(tmp_backups)-len(locked_backups)}{f'({len(locked_backups)}🔐)' if locked_backups else ''} backups with total size {math.ceil(sum([backup.size for backup in tmp_backups]) / (1024 ** 3) * 100) / 100}GB")
+    backups: list[Server.Backup] = tmp_backups
     backups.sort(key=lambda backup: backup.created_at, reverse=True)
     for backup in backups:
         if backup.is_successful == False:
-            result, _ = await backup.delete(session)
-            if result:
-                logger.warning(f"Deleting: {backup.uuid}.zip with total size {math.ceil(backup.size / (1024 ** 3) * 100) / 100}GB from: {backup.created_at}")
-                backups.remove(backup)
+            if backup.completed_at is not None:
+                result, _ = await backup.delete(session)
+                if result:
+                    logger.warning(f"Deleting: {backup.uuid}.zip with total size {math.ceil(backup.size / (1024 ** 3) * 100) / 100}GB from: {backup.created_at}")
+                    backups.remove(backup)
     backups_for_deletion = (backups if session.bootstrap.settings.DELETE_LOCKED 
                             else [backup for backup in backups 
                                   if not backup.is_locked]) \
@@ -76,10 +77,11 @@ async def prune_backups_for_server(session: aiohttp.ClientSession, server: Serve
     if not backups_for_deletion:
         return # No viable backups are ready for deletion
     for backup in backups_for_deletion:
-        result, _ = await backup.delete(session)
-        if result:
-            logger.warning(f"Deleting: {backup.uuid}.zip with total size {math.ceil(backup.size / (1024 ** 3) * 100) / 100}GB from: {backup.created_at}")
-            # No need to remove backup from backups list, EOL
+        if backup.completed_at is not None:
+            result, _ = await backup.delete(session)
+            if result:
+                logger.warning(f"Deleting: {backup.uuid}.zip with total size {math.ceil(backup.size / (1024 ** 3) * 100) / 100}GB from: {backup.created_at}")
+                # No need to remove backup from backups list, EOL
 
 async def serve_forever(bootstrap: Bootstrap):
     async with aiohttp.ClientSession() as session:
@@ -99,6 +101,7 @@ async def serve_forever(bootstrap: Bootstrap):
             await asyncio.sleep(settings.APP_CHECK_INTERVAL)
 
 if __name__ == "__main__":
+    print("Booting ...") # Neccessary step to set container state to running
     settings: Settings = Settings() # Load settings to memory of arguments list
     bootstrap = Bootstrap()
     bootstrap.settings = settings
